@@ -400,7 +400,7 @@ def show_route_optimization_page(routing_engine, cost_model, sustainability_mode
     
     # Input form
     with st.form("route_form"):
-        col1, col2, col3 = st.columns(3)
+        col1, col2, col3, col4 = st.columns(4)
         
         with col1:
             origin = st.selectbox("📍 Origin", locations, index=0)
@@ -411,13 +411,8 @@ def show_route_optimization_page(routing_engine, cost_model, sustainability_mode
         with col3:
             order_weight = st.number_input("📦 Order Weight (kg)", min_value=1.0, max_value=10000.0, value=500.0, step=50.0)
         
-        col4, col5 = st.columns(2)
-        
         with col4:
             priority = st.selectbox("⚡ Priority", ["Express", "Standard", "Economy"], index=1)
-        
-        with col5:
-            top_n = st.slider("🔝 Options to Show", min_value=1, max_value=5, value=3)
         
         submitted = st.form_submit_button("🚀 Optimize Route", use_container_width=True)
     
@@ -441,7 +436,7 @@ def show_route_optimization_page(routing_engine, cost_model, sustainability_mode
                 destination=destination,
                 order_weight_kg=order_weight,
                 priority=priority,
-                show_top_n=top_n
+                show_top_n=1
             )
         
         # Check for errors
