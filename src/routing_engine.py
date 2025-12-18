@@ -232,15 +232,9 @@ class RoutingEngine:
         sustainability_model = SustainabilityModel()
         
         # Score 1: TIME SCORE (lower is better)
-        priority_weight = {
-            'Express': 2.0,
-            'Standard': 1.0,
-            'Economy': 0.5
-        }.get(priority, 1.0)
-        
-        df['Time_Score'] = (
-            df['Total_Time_Hours'] * priority_weight
-        )
+        # Use actual time - don't artificially weight by priority
+        # The priority is considered in recommendations, not in scoring
+        df['Time_Score'] = df['Total_Time_Hours']
         
         # Score 2: COST SCORE (lower is better)
         df['Cost_Score'] = df.apply(
@@ -368,7 +362,12 @@ class RoutingEngine:
         priority: str
     ) -> Dict:
         """
-        Generate business-friendly recommendations.
+        Generate intelligent data-driven recommendations.
+        
+        Compares actual metrics to make smart decisions:
+        - Express: Minimize time, but if times are equal, choose cheaper option
+        - Economy: Minimize cost, but if costs are equal, choose faster/greener
+        - Standard: Balance all factors
         
         Args:
             ranked_options: Ranked options
@@ -380,28 +379,122 @@ class RoutingEngine:
         """
         recommendations = {}
         
-        # Priority-based recommendation
-        if priority == 'Express':
-            recommendations['primary'] = {
-                'option': 'fastest',
-                'rationale': 'Express priority requires fastest delivery despite higher cost'
-            }
-        elif priority == 'Economy':
-            recommendations['primary'] = {
-                'option': 'cheapest',
-                'rationale': 'Economy priority prioritizes cost savings over speed'
-            }
-        else:
-            recommendations['primary'] = {
-                'option': 'balanced',
-                'rationale': 'Standard priority balances time, cost, and environmental impact'
-            }
+        # Extract top options for comparison
+        fastest = ranked_options['fastest'].iloc[0] if not ranked_options['fastest'].empty else None
+        cheapest = ranked_options['cheapest'].iloc[0] if not ranked_options['cheapest'].empty else None
+        greenest = ranked_options['greenest'].iloc[0] if not ranked_options['greenest'].empty else None
+        balanced = ranked_options['balanced'].iloc[0] if not ranked_options['balanced'].empty else None
         
-        # Alternative consideration
-        recommendations['alternative'] = {
-            'option': 'greenest',
-            'rationale': 'Consider greenest option for corporate sustainability goals'
-        }
+        # Define tolerance for "approximately equal" (within 5%)
+        def is_approximately_equal(val1, val2, tolerance=0.05):
+            """Check if two values are within tolerance percentage."""
+            if val1 == 0 and val2 == 0:
+                return True
+            if val1 == 0 or val2 == 0:
+                return False
+            return abs(val1 - val2) / max(val1, val2) <= tolerance
+        
+        # Intelligent recommendation based on priority
+        if priority == 'Express':
+            # Express: Minimize time first, but be smart about cost
+            fastest_time = fastest['Total_Time_Hours']
+            cheapest_time = cheapest['Total_Time_Hours']
+            greenest_time = greenest['Total_Time_Hours']
+            
+            # If cheapest has same time as fastest, choose cheapest!
+            if is_approximately_equal(fastest_time, cheapest_time):
+                recommendations['primary'] = {
+                    'option': 'cheapest',
+                    'rationale': f'Cheapest option delivers in same time ({cheapest_time:.1f}h) as fastest but saves ₹{abs(fastest["Cost_Score"] - cheapest["Cost_Score"]):.0f}'
+                }
+            # If greenest has same time as fastest, choose greenest!
+            elif is_approximately_equal(fastest_time, greenest_time):
+                recommendations['primary'] = {
+                    'option': 'greenest',
+                    'rationale': f'Greenest option delivers in same time ({greenest_time:.1f}h) as fastest but saves {abs(fastest["Emissions_Score"] - greenest["Emissions_Score"]):.1f} kg CO₂'
+                }
+            else:
+                recommendations['primary'] = {
+                    'option': 'fastest',
+                    'rationale': f'Fastest delivery ({fastest_time:.1f}h) for Express priority'
+                }
+        
+        elif priority == 'Economy':
+            # Economy: Minimize cost first, but consider time if costs are equal
+            cheapest_cost = cheapest['Cost_Score']
+            greenest_cost = greenest['Cost_Score']
+            fastest_cost = fastest['Cost_Score']
+            
+            # If greenest costs same as cheapest, choose greenest!
+            if is_approximately_equal(cheapest_cost, greenest_cost):
+                recommendations['primary'] = {
+                    'option': 'greenest',
+                    'rationale': f'Greenest option costs same (₹{greenest_cost:.0f}) as cheapest but saves {abs(cheapest["Emissions_Score"] - greenest["Emissions_Score"]):.1f} kg CO₂'
+                }
+            # If fastest costs same as cheapest, choose fastest!
+            elif is_approximately_equal(cheapest_cost, fastest_cost):
+                recommendations['primary'] = {
+                    'option': 'fastest',
+                    'rationale': f'Fastest option costs same (₹{fastest_cost:.0f}) as cheapest but saves {abs(cheapest["Total_Time_Hours"] - fastest["Total_Time_Hours"]):.1f} hours'
+                }
+            else:
+                recommendations['primary'] = {
+                    'option': 'cheapest',
+                    'rationale': f'Lowest cost (₹{cheapest_cost:.0f}) for Economy priority'
+                }
+        
+        else:  # Standard
+            # Standard: Use balanced, but check if it's truly balanced
+            balanced_score = balanced['Composite_Score']
+            
+            # Check if balanced is significantly different from specialized options
+            fastest_composite = fastest['Composite_Score']
+            cheapest_composite = cheapest['Composite_Score']
+            greenest_composite = greenest['Composite_Score']
+            
+            # If balanced is very similar to cheapest, just use cheapest
+            if is_approximately_equal(balanced_score, cheapest_composite, tolerance=0.03):
+                recommendations['primary'] = {
+                    'option': 'cheapest',
+                    'rationale': f'Cheapest option (₹{cheapest["Cost_Score"]:.0f}) provides best overall balance for Standard priority'
+                }
+            # If balanced is very similar to greenest, use greenest
+            elif is_approximately_equal(balanced_score, greenest_composite, tolerance=0.03):
+                recommendations['primary'] = {
+                    'option': 'greenest',
+                    'rationale': f'Greenest option ({greenest["Emissions_Score"]:.1f} kg CO₂) provides best overall balance for Standard priority'
+                }
+            else:
+                recommendations['primary'] = {
+                    'option': 'balanced',
+                    'rationale': f'Balanced option optimally trades off time ({balanced["Total_Time_Hours"]:.1f}h), cost (₹{balanced["Cost_Score"]:.0f}), and emissions ({balanced["Emissions_Score"]:.1f} kg CO₂)'
+                }
+        
+        # Intelligent alternative recommendation
+        primary_option = recommendations['primary']['option']
+        
+        # Suggest best alternative that wasn't chosen
+        if primary_option != 'greenest' and greenest is not None:
+            co2_savings = abs(ranked_options[primary_option].iloc[0]['Emissions_Score'] - greenest['Emissions_Score'])
+            if co2_savings > 1:  # Only suggest if meaningful savings
+                recommendations['alternative'] = {
+                    'option': 'greenest',
+                    'rationale': f'Consider greenest option to save {co2_savings:.1f} kg CO₂ for sustainability goals'
+                }
+        elif primary_option != 'cheapest' and cheapest is not None:
+            cost_savings = abs(ranked_options[primary_option].iloc[0]['Cost_Score'] - cheapest['Cost_Score'])
+            if cost_savings > 50:  # Only suggest if meaningful savings
+                recommendations['alternative'] = {
+                    'option': 'cheapest',
+                    'rationale': f'Consider cheapest option to save ₹{cost_savings:.0f}'
+                }
+        elif primary_option != 'fastest' and fastest is not None:
+            time_savings = abs(ranked_options[primary_option].iloc[0]['Total_Time_Hours'] - fastest['Total_Time_Hours'])
+            if time_savings > 0.5:  # Only suggest if meaningful savings (>30 min)
+                recommendations['alternative'] = {
+                    'option': 'fastest',
+                    'rationale': f'Consider fastest option to save {time_savings:.1f} hours'
+                }
         
         return recommendations
     
