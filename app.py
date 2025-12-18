@@ -693,11 +693,14 @@ def show_fleet_dashboard(raw_data, processed_data):
     with col2:
         type_filter = st.multiselect("Filter by Type", vehicles_df['Vehicle_Type'].unique(), default=vehicles_df['Vehicle_Type'].unique())
     
-    # Apply filters
-    filtered_vehicles = vehicles_df[
-        (vehicles_df['Status'].isin(status_filter)) &
-        (vehicles_df['Vehicle_Type'].isin(type_filter))
-    ]
+    # Apply filters (show all if no selection)
+    filtered_vehicles = vehicles_df.copy()
+    
+    if status_filter:  # Only filter if something is selected
+        filtered_vehicles = filtered_vehicles[filtered_vehicles['Status'].isin(status_filter)]
+    
+    if type_filter:  # Only filter if something is selected
+        filtered_vehicles = filtered_vehicles[filtered_vehicles['Vehicle_Type'].isin(type_filter)]
     
     # Display table
     st.dataframe(
