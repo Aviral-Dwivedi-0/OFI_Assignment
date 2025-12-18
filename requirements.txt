@@ -11,6 +11,9 @@ numpy>=1.26.0
 # Visualization
 plotly>=5.17.0
 
+# PDF generation
+reportlab>=3.6.0
+
 # Utilities (built-in, no installation needed)
 # - logging
 # - os
