@@ -41,7 +41,7 @@ class DataLoader:
         'customer_feedback': ['Order_ID', 'Feedback_Date', 'Rating', 'Would_Recommend']
     }
     
-    def __init__(self, data_dir: str = '.'):
+    def __init__(self, data_dir: str = 'data'):
         """
         Initialize data loader.
         
@@ -264,7 +264,7 @@ class DataLoader:
         return validation_results
 
 
-def load_data(data_dir: str = '.') -> Tuple[Dict[str, pd.DataFrame], pd.DataFrame]:
+def load_data(data_dir: str = 'data') -> Tuple[Dict[str, pd.DataFrame], pd.DataFrame]:
     """
     Convenience function to load all data and get quality report.
     

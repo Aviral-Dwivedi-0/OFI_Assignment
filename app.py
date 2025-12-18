@@ -39,51 +39,289 @@ st.set_page_config(
     page_title="Smart Route Planner | NexGen Logistics",
     page_icon="🚚",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
 
-# Custom CSS for better styling
+# Modern Custom CSS with #1A6262 Theme
 st.markdown("""
 <style>
-    .main-header {
+    /* Global Background - #1A6262 Theme */
+    .stApp {
+        background: linear-gradient(135deg, #0d1f1f 0%, #122d2d 50%, #1A6262 100%);
+    }
+    
+    /* Main content area with #1A6262 accent */
+    .main .block-container {
+        background: rgba(255, 255, 255, 0.98);
+        border-radius: 20px;
+        padding: 2rem;
+        box-shadow: 0 8px 32px rgba(26, 98, 98, 0.15);
+        border: 1px solid rgba(26, 98, 98, 0.1);
+    }
+    
+    /* Hide Sidebar */
+    [data-testid="stSidebar"] {
+        display: none;
+    }
+    
+    /* Horizontal Navigation Bar */
+    .nav-container {
+        background: linear-gradient(90deg, #1A6262 0%, #145050 100%);
+        padding: 0;
+        margin: -4rem -4rem 2rem -4rem;
+        box-shadow: 0 4px 20px rgba(26, 98, 98, 0.3);
+        position: sticky;
+        top: 0;
+        z-index: 1000;
+    }
+    
+    .nav-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1.5rem 3rem;
+        color: white;
+    }
+    
+    .nav-brand {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        font-size: 1.8rem;
+        font-weight: 800;
+        color: white;
+        text-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+    
+    .nav-brand-icon {
         font-size: 2.5rem;
-        font-weight: 700;
-        color: #1f77b4;
-        text-align: center;
-        margin-bottom: 1rem;
+        animation: pulse 2s infinite;
     }
-    .sub-header {
-        font-size: 1.2rem;
-        color: #666;
-        text-align: center;
-        margin-bottom: 2rem;
+    
+    @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.1); }
     }
+    
+    .nav-subtitle {
+        font-size: 0.9rem;
+        opacity: 0.9;
+        font-weight: 400;
+    }
+    
+    .nav-badge {
+        background: rgba(255, 255, 255, 0.2);
+        padding: 0.4rem 1rem;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+    
+    /* Modern Cards with #1A6262 Accent */
     .metric-card {
-        background-color: #f0f2f6;
-        padding: 1rem;
-        border-radius: 0.5rem;
-        border-left: 4px solid #1f77b4;
+        background: linear-gradient(135deg, #d6ecec 0%, #b3d9d9 100%);
+        padding: 1.5rem;
+        border-radius: 15px;
+        border-left: 5px solid #1A6262;
+        box-shadow: 0 4px 15px rgba(26, 98, 98, 0.2);
+        transition: all 0.3s ease;
     }
+    
+    .metric-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(26, 98, 98, 0.35);
+    }
+    
+    /* Success Box */
     .success-box {
-        background-color: #d4edda;
-        border: 1px solid #c3e6cb;
-        border-radius: 0.25rem;
-        padding: 1rem;
+        background: linear-gradient(135deg, #d4f4dd 0%, #a8e6cf 100%);
+        border: 2px solid #1A6262;
+        border-radius: 12px;
+        padding: 1.5rem;
         color: #155724;
+        box-shadow: 0 4px 12px rgba(26, 98, 98, 0.15);
+        transition: all 0.3s ease;
     }
+    
+    .success-box:hover {
+        transform: scale(1.02);
+        box-shadow: 0 6px 20px rgba(26, 98, 98, 0.25);
+    }
+    
+    /* Warning Box */
     .warning-box {
-        background-color: #fff3cd;
-        border: 1px solid #ffeeba;
-        border-radius: 0.25rem;
-        padding: 1rem;
+        background: linear-gradient(135deg, #fff9e6 0%, #ffe6b3 100%);
+        border: 2px solid #ffc107;
+        border-radius: 12px;
+        padding: 1.5rem;
         color: #856404;
+        box-shadow: 0 4px 12px rgba(255, 193, 7, 0.15);
+        transition: all 0.3s ease;
     }
+    
+    .warning-box:hover {
+        transform: scale(1.02);
+        box-shadow: 0 6px 20px rgba(255, 193, 7, 0.25);
+    }
+    
+    /* Info Box */
     .info-box {
-        background-color: #d1ecf1;
-        border: 1px solid #bee5eb;
-        border-radius: 0.25rem;
-        padding: 1rem;
+        background: linear-gradient(135deg, #d6ecec 0%, #b3d9d9 100%);
+        border: 2px solid #1A6262;
+        border-radius: 12px;
+        padding: 1.5rem;
         color: #0c5460;
+        box-shadow: 0 4px 12px rgba(26, 98, 98, 0.15);
+        transition: all 0.3s ease;
+    }
+    
+    .info-box:hover {
+        transform: scale(1.02);
+        box-shadow: 0 6px 20px rgba(26, 98, 98, 0.25);
+    }
+    
+    /* Button Hover Effects */
+    .stButton > button {
+        background: linear-gradient(135deg, #1A6262 0%, #145050 100%);
+        color: white;
+        border: none;
+        border-radius: 12px;
+        padding: 0.75rem 2rem;
+        font-weight: 600;
+        font-size: 1.1rem;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 4px 15px rgba(26, 98, 98, 0.3);
+    }
+    
+    .stButton > button:hover {
+        background: linear-gradient(135deg, #1f7a7a 0%, #196868 100%);
+        transform: translateY(-3px) scale(1.02);
+        box-shadow: 0 8px 25px rgba(26, 98, 98, 0.5);
+    }
+    
+    .stButton > button:active {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 15px rgba(26, 98, 98, 0.4);
+    }
+    
+    /* Form Submit Button */
+    .stFormSubmitButton > button {
+        background: linear-gradient(135deg, #1A6262 0%, #145050 100%);
+        color: white;
+        border: none;
+        border-radius: 12px;
+        padding: 0.75rem 2rem;
+        font-weight: 600;
+        font-size: 1.1rem;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 4px 15px rgba(26, 98, 98, 0.3);
+        width: 100%;
+    }
+    
+    .stFormSubmitButton > button:hover {
+        background: linear-gradient(135deg, #1f7a7a 0%, #196868 100%);
+        transform: translateY(-3px) scale(1.02);
+        box-shadow: 0 8px 25px rgba(26, 98, 98, 0.5);
+    }
+    
+    /* Tabs styling */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px;
+        background-color: rgba(26, 98, 98, 0.05);
+        padding: 10px;
+        border-radius: 12px;
+    }
+    
+    .stTabs [data-baseweb="tab"] {
+        background-color: white;
+        border-radius: 8px;
+        padding: 10px 20px;
+        font-weight: 600;
+        color: #145050;
+        border: 2px solid transparent;
+        transition: all 0.3s ease;
+    }
+    
+    .stTabs [data-baseweb="tab"]:hover {
+        background: linear-gradient(135deg, #d6ecec 0%, #b3d9d9 100%);
+        border-color: #1A6262;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(26, 98, 98, 0.2);
+    }
+    
+    .stTabs [aria-selected="true"] {
+        background: linear-gradient(135deg, #1A6262 0%, #145050 100%);
+        color: white;
+        border-color: #1A6262;
+        box-shadow: 0 4px 15px rgba(26, 98, 98, 0.4);
+    }
+    
+    /* Metrics styling */
+    [data-testid="stMetricValue"] {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #1A6262;
+    }
+    
+    /* Dataframe styling */
+    .stDataFrame {
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 4px 15px rgba(26, 98, 98, 0.1);
+    }
+    
+    /* Selectbox and Input styling */
+    .stSelectbox > div > div,
+    .stNumberInput > div > div > input {
+        border-radius: 8px;
+        border: 2px solid rgba(26, 98, 98, 0.3);
+        transition: all 0.3s ease;
+    }
+    
+    .stSelectbox > div > div:hover,
+    .stNumberInput > div > div > input:hover {
+        border-color: #1A6262;
+        box-shadow: 0 0 0 2px rgba(26, 98, 98, 0.1);
+    }
+    
+    .stSelectbox > div > div:focus-within,
+    .stNumberInput > div > div > input:focus {
+        border-color: #1A6262;
+        box-shadow: 0 0 0 3px rgba(26, 98, 98, 0.2);
+    }
+    
+    /* Slider styling */
+    .stSlider > div > div > div {
+        background-color: #1A6262;
+    }
+    
+    /* Expander styling */
+    .streamlit-expanderHeader {
+        background: linear-gradient(135deg, #d6ecec 0%, #b3d9d9 100%);
+        border-radius: 8px;
+        border: 1px solid #1A6262;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    .streamlit-expanderHeader:hover {
+        background: linear-gradient(135deg, #b3d9d9 0%, #99cccc 100%);
+        transform: translateX(5px);
+        box-shadow: 0 4px 12px rgba(26, 98, 98, 0.2);
+    }
+    
+    /* Radio button styling */
+    .stRadio > div {
+        background: rgba(26, 98, 98, 0.05);
+        padding: 10px;
+        border-radius: 10px;
+    }
+    
+    /* Spinner styling */
+    .stSpinner > div {
+        border-top-color: #1A6262;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -101,10 +339,6 @@ def load_and_preprocess_data():
 def main():
     """Main application function."""
     
-    # Header
-    st.markdown('<div class="main-header">🚚 Smart Route Planner</div>', unsafe_allow_html=True)
-    st.markdown('<div class="sub-header">Decision Intelligence System for NexGen Logistics</div>', unsafe_allow_html=True)
-    
     # Load data
     try:
         raw_data, processed_data, quality_summary = load_and_preprocess_data()
@@ -117,25 +351,42 @@ def main():
     cost_model = CostModel()
     sustainability_model = SustainabilityModel()
     
-    # Sidebar
-    st.sidebar.title("⚙️ Configuration")
+    # Modern Horizontal Navigation Bar
+    st.markdown("""
+        <div class="nav-container">
+            <div class="nav-header">
+                <div>
+                    <div class="nav-brand">
+                        <span class="nav-brand-icon">&#x1F69A;</span>
+                        <div>
+                            <div>Smart Route Planner</div>
+                            <div class="nav-subtitle">Decision Intelligence System for NexGen Logistics</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
     
-    # Navigation
-    page = st.sidebar.radio(
-        "Navigate",
-        ["🎯 Route Optimization", "📊 Fleet Dashboard", "🔍 Data Quality", "ℹ️ About"]
-    )
+    # Navigation tabs
+    tabs = st.tabs([
+        "🎯 Route Optimization",
+        "📊 Fleet Dashboard", 
+        "🔍 Data Quality",
+        "ℹ️ About"
+    ])
     
-    if page == "🎯 Route Optimization":
+    # Route pages
+    with tabs[0]:
         show_route_optimization_page(routing_engine, cost_model, sustainability_model, raw_data, processed_data)
     
-    elif page == "📊 Fleet Dashboard":
+    with tabs[1]:
         show_fleet_dashboard(raw_data, processed_data)
     
-    elif page == "🔍 Data Quality":
+    with tabs[2]:
         show_data_quality_page(quality_summary, raw_data)
     
-    elif page == "ℹ️ About":
+    with tabs[3]:
         show_about_page()
 
 

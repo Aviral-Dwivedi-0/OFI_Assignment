@@ -199,7 +199,6 @@ OFI_Assignment/
 ├── app.py                          # Main Streamlit application
 ├── requirements.txt                # Python dependencies
 ├── README.md                       # This file
-├── innovation_brief.md             # Detailed innovation document
 │
 ├── src/                            # Source code modules
 │   ├── data_loader.py             # Data loading & validation
@@ -212,9 +211,14 @@ OFI_Assignment/
 ├── visuals/                        # Visualization module
 │   └── charts.py                  # Plotly charts
 │
-├── data/                           # (Optional) Data directory
-│
-└── *.csv                           # Dataset files (root directory)
+└── data/                           # CSV dataset files
+    ├── orders.csv
+    ├── routes_distance.csv
+    ├── vehicle_fleet.csv
+    ├── warehouse_inventory.csv
+    ├── cost_breakdown.csv
+    ├── customer_feedback.csv
+    └── delivery_performance.csv
 ```
 
 ---
