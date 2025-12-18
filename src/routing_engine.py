@@ -187,14 +187,14 @@ class RoutingEngine:
         vehicles: pd.DataFrame
     ) -> pd.DataFrame:
         """
-        Generate all route-vehicle combinations.
+        Generate all route-vehicle combinations with vehicle-specific time calculation.
         
         Args:
             routes: Feasible routes
             vehicles: Feasible vehicles
             
         Returns:
-            DataFrame with all combinations
+            DataFrame with all combinations including adjusted delivery times
         """
         # Use assign for cleaner cross-join without modifying originals
         combinations = routes.assign(_key=1).merge(
@@ -202,6 +202,32 @@ class RoutingEngine:
             on='_key',
             suffixes=('_route', '_vehicle')
         ).drop('_key', axis=1)
+        
+        # Apply vehicle-specific speed adjustments
+        # Different vehicle types have different average speeds
+        VEHICLE_SPEED_KMH = {
+            'Express_Bike': 80.0,      # Fastest - motorbikes
+            'Small_Van': 65.0,          # Fast - small vehicles
+            'Medium_Truck': 55.0,       # Medium speed
+            'Large_Truck': 45.0,        # Slower - heavy vehicles
+            'Refrigerated': 50.0        # Moderate - refrigerated trucks
+        }
+        
+        # Calculate vehicle-specific travel time
+        combinations['Vehicle_Speed_KMH'] = combinations['Vehicle_Type'].map(
+            VEHICLE_SPEED_KMH
+        ).fillna(60.0)  # Default to 60 km/h if type not found
+        
+        # Recalculate total time based on vehicle speed
+        # Base travel time adjusted for vehicle speed
+        combinations['Vehicle_Base_Time_Hours'] = (
+            combinations['Distance_KM'] / combinations['Vehicle_Speed_KMH']
+        )
+        
+        # Total time = vehicle-adjusted base time + traffic delay + weather impact
+        combinations['Total_Time_Hours'] = (
+            combinations['Vehicle_Base_Time_Hours'] + combinations['Traffic_Delay_Hours']
+        ) * combinations['Weather_Multiplier']
         
         return combinations
     
@@ -276,7 +302,15 @@ class RoutingEngine:
         top_n: int
     ) -> Dict[str, pd.DataFrame]:
         """
-        Rank options by each objective.
+        Rank options by each objective with CORRECT optimization logic.
+        
+        Strategy:
+        1. ALWAYS select the TRUE optimal option for each objective
+        2. Fastest = LOWEST delivery time (regardless of vehicle)
+        3. Cheapest = LOWEST cost (regardless of vehicle)
+        4. Greenest = LOWEST emissions (regardless of vehicle)
+        5. Balanced = LOWEST composite score
+        6. Only diversify if multiple options have SIMILAR scores (within 5% tolerance)
         
         Args:
             scored_df: Scored combinations
@@ -286,28 +320,96 @@ class RoutingEngine:
             Dictionary with top options for each objective
         """
         ranked = {}
+        tolerance = 0.05  # 5% tolerance for considering options "similar"
+        used_vehicles = set()
         
-        # Fastest option (minimize time)
-        ranked['fastest'] = scored_df.nsmallest(
-            top_n, 'Time_Score'
-        )[self._get_output_columns()].reset_index(drop=True)
+        # Step 1: FASTEST - absolute lowest delivery time
+        ranked['fastest'] = self._get_optimal_with_smart_diversity(
+            scored_df, 'Time_Score', tolerance, top_n, used_vehicles
+        )
+        if not ranked['fastest'].empty:
+            used_vehicles.add(ranked['fastest'].iloc[0]['Vehicle_Type'])
         
-        # Cheapest option (minimize cost)
-        ranked['cheapest'] = scored_df.nsmallest(
-            top_n, 'Cost_Score'
-        )[self._get_output_columns()].reset_index(drop=True)
+        # Step 2: CHEAPEST - absolute lowest cost
+        ranked['cheapest'] = self._get_optimal_with_smart_diversity(
+            scored_df, 'Cost_Score', tolerance, top_n, used_vehicles
+        )
+        if not ranked['cheapest'].empty:
+            used_vehicles.add(ranked['cheapest'].iloc[0]['Vehicle_Type'])
         
-        # Greenest option (minimize emissions)
-        ranked['greenest'] = scored_df.nsmallest(
-            top_n, 'Emissions_Score'
-        )[self._get_output_columns()].reset_index(drop=True)
+        # Step 3: GREENEST - absolute lowest emissions
+        ranked['greenest'] = self._get_optimal_with_smart_diversity(
+            scored_df, 'Emissions_Score', tolerance, top_n, used_vehicles
+        )
+        if not ranked['greenest'].empty:
+            used_vehicles.add(ranked['greenest'].iloc[0]['Vehicle_Type'])
         
-        # Best balanced option (minimize composite)
-        ranked['balanced'] = scored_df.nsmallest(
-            top_n, 'Composite_Score'
-        )[self._get_output_columns()].reset_index(drop=True)
+        # Step 4: BALANCED - lowest composite score
+        ranked['balanced'] = self._get_optimal_with_smart_diversity(
+            scored_df, 'Composite_Score', tolerance, top_n, used_vehicles
+        )
         
         return ranked
+    
+    def _get_optimal_with_smart_diversity(
+        self,
+        scored_df: pd.DataFrame,
+        score_column: str,
+        tolerance: float,
+        top_n: int,
+        used_vehicles: set
+    ) -> pd.DataFrame:
+        """
+        Get optimal option with smart diversity logic.
+        
+        Logic:
+        1. Find the absolute best score
+        2. If best vehicle already used, check if there's an unused vehicle within 5% tolerance
+        3. If yes, use the unused vehicle (smart diversity)
+        4. If no, use the best vehicle anyway (optimization over diversity)
+        
+        Args:
+            scored_df: Scored combinations
+            score_column: Column to minimize
+            tolerance: Tolerance for considering options similar (0.05 = 5%)
+            top_n: Number of results to return
+            used_vehicles: Set of vehicle types already used
+            
+        Returns:
+            Optimal option(s) for this category
+        """
+        if scored_df.empty:
+            return pd.DataFrame()
+        
+        # Get absolute best option
+        best_option = scored_df.nsmallest(1, score_column).iloc[0]
+        best_score = best_option[score_column]
+        best_vehicle = best_option['Vehicle_Type']
+        
+        # If best vehicle not used yet, return it immediately
+        if best_vehicle not in used_vehicles:
+            return scored_df.nsmallest(
+                top_n, score_column
+            )[self._get_output_columns()].reset_index(drop=True)
+        
+        # Best vehicle already used - try to find similar unused vehicle
+        unused_df = scored_df[~scored_df['Vehicle_Type'].isin(used_vehicles)]
+        
+        if not unused_df.empty:
+            # Find unused options within tolerance
+            threshold = best_score * (1 + tolerance)
+            similar_unused = unused_df[unused_df[score_column] <= threshold]
+            
+            if not similar_unused.empty:
+                # Found similar unused option - use it for diversity
+                return similar_unused.nsmallest(
+                    top_n, score_column
+                )[self._get_output_columns()].reset_index(drop=True)
+        
+        # No similar unused option - return absolute best (optimization over diversity)
+        return scored_df.nsmallest(
+            top_n, score_column
+        )[self._get_output_columns()].reset_index(drop=True)
     
     def _get_output_columns(self) -> List[str]:
         """Get relevant columns for output."""
